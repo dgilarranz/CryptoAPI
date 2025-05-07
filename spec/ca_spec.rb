@@ -3,119 +3,32 @@ require_relative '../lib/ca'
 describe 'A Certificate Authority (CA)' do
 
   describe 'when created' do
-    it 'has a private key' do
-      ca = CA.new 'MyCA'
+    it 'has a RSA key pair' do
+      key = OpenSSL::PKey::RSA.new 2048
+      ca = CA.new(key, OpenSSL::X509::Certificate.new)
 
-      expect(ca.private_key).to be_a OpenSSL::PKey::RSA
+      expect(ca.key).to be_a OpenSSL::PKey::RSA
     end
 
-    it 'has a private key of 2048 bytes' do
-      ca = CA.new 'MyCA'
+    it 'stores the provided a RSA key pair' do
+      key = OpenSSL::PKey::RSA.new 2048
+      ca = CA.new(key, OpenSSL::X509::Certificate.new)
 
-      # We check the length of the private key converted to pem. The resulting
-      # string should be 1700, 1704 or 1708 characters in length
-      # (lengths found empirically using irb and simulating possible values)
-      expect([1700, 1704, 1708]).to include ca.private_key.private_to_pem.length
+      expect(ca.key).to be key
     end
 
     it 'has a root certificate' do
-      ca = CA.new 'MyCA'
+      certificate = OpenSSL::X509::Certificate.new
+      ca = CA.new(OpenSSL::PKey::RSA.new, certificate)
 
       expect(ca.certificate).to be_a OpenSSL::X509::Certificate
     end
 
-    it 'has a certificate with the requested Common Name (CN)' do
-      common_name = 'MyCA'
-      ca = CA.new common_name
+    it 'stores the provided a root certificate' do
+      certificate = OpenSSL::X509::Certificate.new
+      ca = CA.new(OpenSSL::PKey::RSA.new, certificate)
 
-      expect(ca.certificate.subject.to_s.split('/')[1].split('=').last).to eq common_name
-    end
-
-    it 'has a root certificate with the serial number 0' do
-      ca = CA.new 'MyCA'
-
-      expected_serial = OpenSSL::BN.new 0
-      expect(ca.certificate.serial).to eq expected_serial
-    end
-
-    it 'has a v3 root certificate (RFC 5280)' do
-      ca = CA.new 'MyCA'
-
-      expect(ca.certificate.version).to be 2
-    end
-
-    it 'has a root certificate whose validity starts the moment it is created' do
-      # Mock calls to Time.now to return a fixed time
-      @time_now = Time.now
-      allow(Time).to receive(:now).and_return(@time_now)
-
-      ca = CA.new 'MyCA'
-
-      expect(ca.certificate.not_before.to_i).to eq @time_now.to_i
-    end
-
-    it 'has a root certificate valid for 365 days' do
-      # Mock calls to Time.now to return a fixed time
-      @time_now = Time.now
-      allow(Time).to receive(:now).and_return(@time_now)
-
-      ca = CA.new 'MyCA'
-
-      expect(ca.certificate.not_after.to_i).to eq (@time_now + 365 * 24 * 60 * 60).to_i
-    end
-
-    it 'has a self signed certificate (issuer = subject)' do
-      ca = CA.new 'MyCA'
-
-      expect(ca.certificate.issuer).to eq ca.certificate.subject
-    end
-
-    it 'has a certificate whose public key coincides with the created RSA key pair' do
-      ca = CA.new 'MyCA'
-
-      expect(ca.certificate.public_key.to_s).to eq ca.private_key.public_key.to_s
-    end
-
-    it 'has a certificate with a hash based Subject Key Identifier (SKID) extension' do
-      ca = CA.new 'MyCA'
-
-      subject_key_identifier = ca
-        .certificate
-        .extensions
-        .map(&:to_s)
-        .filter { |ext| ext.match?(/subjectKeyIdentifier/) }
-        .first
-      expect(subject_key_identifier.match?(/[0-9A-F]{2}(:[0-9A-F]{2}){19}/)).to be_truthy
-    end
-
-    it 'has a certificate with an extension that allows its usage as a CA' do
-      ca = CA.new 'MyCA'
-
-      basic_constraints = ca
-        .certificate
-        .extensions
-        .map(&:to_s)
-        .filter { |ext| ext.match?(/basicConstraints/) }
-        .first
-      expect(basic_constraints.match?(/critical, CA:TRUE/)).to be_truthy
-    end
-
-    it "has a certificate with an extensions that indicates the CA's key can be used to verify signatures" do
-      ca = CA.new 'MyCA'
-
-      key_usage= ca
-        .certificate
-        .extensions
-        .map(&:to_s)
-        .filter { |ext| ext.match?(/keyUsage/) }
-        .first
-      expect(key_usage.match?(/critical, Certificate Sign, CRL Sign/)).to be_truthy
-    end
-
-    it 'has a self signed certificate' do
-      ca = CA.new 'MyCA'
-
-      expect(ca.certificate.verify(ca.certificate.public_key)).to be_truthy
+      expect(ca.certificate).to be certificate
     end
   end
 
@@ -141,45 +54,96 @@ describe 'A Certificate Authority (CA)' do
         nA==
         -----END CERTIFICATE REQUEST-----
       EOS
+
+      @root_crt = OpenSSL::X509::Certificate.new <<~EOS
+      -----BEGIN CERTIFICATE-----
+      MIIC2jCCAkMCAg38MA0GCSqGSIb3DQEBBQUAMIGbMQswCQYDVQQGEwJKUDEOMAwG
+      A1UECBMFVG9reW8xEDAOBgNVBAcTB0NodW8ta3UxETAPBgNVBAoTCEZyYW5rNERE
+      MRgwFgYDVQQLEw9XZWJDZXJ0IFN1cHBvcnQxGDAWBgNVBAMTD0ZyYW5rNEREIFdl
+      YiBDQTEjMCEGCSqGSIb3DQEJARYUc3VwcG9ydEBmcmFuazRkZC5jb20wHhcNMTIw
+      ODIyMDUyNzQxWhcNMTcwODIxMDUyNzQxWjBKMQswCQYDVQQGEwJKUDEOMAwGA1UE
+      CAwFVG9reW8xETAPBgNVBAoMCEZyYW5rNEREMRgwFgYDVQQDDA93d3cuZXhhbXBs
+      ZS5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC0z9FeMynsC8+u
+      dvX+LciZxnh5uRj4C9S6tNeeAlIGCfQYk0zUcNFCoCkTknNQd/YEiawDLNbxBqut
+      bMDZ1aarys1a0lYmUeVLCIqvzBkPJTSQsCopQQ9V8WuT252zzNzs68dVGNdCJd5J
+      NRQykpwexmnjPPv0mvj7i8XgG379TyW6P+WWV5okeUkXJ9eJS2ouDYdR2SM9BoVW
+      +FgxDu6BmXhozW5EfsnajFp7HL8kQClI0QOc79yuKl3492rH6bzFsFn2lfwWy9ic
+      7cP8EpCTeFp1tFaD+vxBhPZkeTQ1HKx6hQ5zeHIB5ySJJZ7af2W8r4eTGYzbdRW2
+      4DDHCPhZAgMBAAEwDQYJKoZIhvcNAQEFBQADgYEAQMv+BFvGdMVzkQaQ3/+2noVz
+      /uAKbzpEL8xTcxYyP3lkOeh4FoxiSWqy5pGFALdPONoDuYFpLhjJSZaEwuvjI/Tr
+      rGhLV1pRG9frwDFshqD2Vaj4ENBCBh6UpeBop5+285zQ4SI7q4U9oSebUDJiuOx6
+      +tZ9KynmrbJpTSi0+BM=
+      -----END CERTIFICATE-----
+      EOS
+
+      @key = OpenSSL::PKey::RSA.new <<~EOS
+      -----BEGIN RSA PRIVATE KEY-----
+      MIIEpAIBAAKCAQEAtM/RXjMp7AvPrnb1/i3ImcZ4ebkY+AvUurTXngJSBgn0GJNM
+      1HDRQqApE5JzUHf2BImsAyzW8QarrWzA2dWmq8rNWtJWJlHlSwiKr8wZDyU0kLAq
+      KUEPVfFrk9uds8zc7OvHVRjXQiXeSTUUMpKcHsZp4zz79Jr4+4vF4Bt+/U8luj/l
+      lleaJHlJFyfXiUtqLg2HUdkjPQaFVvhYMQ7ugZl4aM1uRH7J2oxaexy/JEApSNED
+      nO/cripd+Pdqx+m8xbBZ9pX8FsvYnO3D/BKQk3hadbRWg/r8QYT2ZHk0NRyseoUO
+      c3hyAeckiSWe2n9lvK+HkxmM23UVtuAwxwj4WQIDAQABAoIBAE76H0d4La2PEy3v
+      hE98DA0vJdx1PzTJZigPacb42H8OxfIeFQcOKDlj381OwNO7MliVEe9pHJG3CjH8
+      ONhtfBm5wa0UBtFCIFd/6aQUEDYPWECC0kemxV4Sz5yL5vxsVWufKThAW3XnOIrd
+      hm74nvzKSeIZ9yvGrU6ipNHY8MUPm0DQVrVYE5MiKjKVExQ4uRAolV2hlmeQDlSt
+      k85S0TUOWO1EvJZhsVVs7dBjjY10hIjv3gZPAO8CN85JzMeaNbmWv4RQj0B997in
+      rqlOa5qYYt80tAWO4hmPRKCrv6PgThz8C0Cd8AgwNzvQD2d4JpmxxTzBT6/5lRng
+      Hhj/wQECgYEA2jxC0a4lGmp1q2aYE1Zyiq0UqjxA92pwFYJg3800MLkf96A+dOhd
+      wDAc5aAKN8vQV5g33vKi5+pIHWUCskhTS8/PPGrfeqIvtphCj6b7LKosBOhdzrRD
+      Osr+Az/SiR2h5l2lr/v7I8I86RTY7MBk4QcRb601kSagWLDNVzSSdhECgYEA1Bm0
+      0sByqkQmFoUNRjwmShPfJeVLTCr1G4clljl6MqHmGyRDHxtcp1+CXlyJJemLQY2A
+      qrM7/T4x2ta6ME2WgDydFe9M8oU3BbefNYovS6YnoyBqxCx7yZ1vO0Jo40rZI8Bi
+      KoCi6e0Hugg4xyPRz9TTNLmr/yEC1qQesMhM9ckCgYEArsT7rfgMdq8zNOSgfTwJ
+      1sztc7d1P67ZvCABfLlVRn+6/hAydGVyTus4+RvFkxGB8+RPOhiOJbQVtJSkKCqL
+      qnbtu7DK7+ba1xvwkiJjnE1bm0KLfXIXNQpDik6eSHiWo2nzuo/Ne8GeDftIDbG2
+      GBAVAp5v+6I3X0+X4nKTqEECgYEAwT4Cj5mjXxnkEdR7eahHwmpEf0RfzC+/Tate
+      RXZsrUDwY34wYWEOk7fjEZIBqrcTl1ATEHNojpxh096bmHK4UnHnNRrn4nYY4W6g
+      8ajK2oOxzWA1pjJZPiHgO/+PjLafC4G2br7wr2y0A3yGLnmmKVLgc0NPP42WBnVV
+      OP/ljnECgYABlDdJCAehDNSv4mdEzY5bfD+VBFd2QsgE1hYhmUYYRNlgIfIL9Y8e
+      CduqXFLNZ/LHdmtYembgUqrMiJTUqcbSrJt26kBQx0az3LAV+J2p68PQ85KR9ZPy
+      N1jEnRqpAwEdw7S+8l0yVyaNkm66eRI80p+w3AxNbS9hJ/7UlV3lGA==
+      -----END RSA PRIVATE KEY-----
+      EOS
     end
 
     it 'can sign certificate requests' do
-      ca = CA.new 'MyCA'
+      ca = CA.new(@key, @root_crt)
       crt = ca.sign(@csr)
 
-      expect(crt.verify(ca.private_key.public_key)).to be_truthy
+      expect(crt.verify(ca.key.public_key)).to be_truthy
     end
 
     it 'emits certificates valid for 2 years' do
-      ca = CA.new 'MyCA'
+      ca = CA.new(@key, @root_crt)
       crt = ca.sign(@csr)
 
       expect(crt.not_after).to eq (crt.not_before + 2 * 365 * 24 * 60 * 60)
     end
 
     it 'emits v3 certificates' do
-      ca = CA.new 'MyCA'
+      ca = CA.new(@key, @root_crt)
       crt = ca.sign(@csr)
 
       expect(crt.version).to be 2
     end
 
     it 'emits certificates for the requested subject' do
-      ca = CA.new 'MyCA'
+      ca = CA.new(@key, @root_crt)
 
       crt = ca.sign(@csr)
       expect(crt.subject).to eq @csr.subject
     end
 
     it 'emits certificates with itself as the issuer' do
-      ca = CA.new 'MyCA'
+      ca = CA.new(@key, @root_crt)
       crt = ca.sign(@csr)
 
       expect(crt.issuer).to eq ca.certificate.subject
     end
 
     it 'emits certificates with a hash based Subject Key Identifier (SKID) extension' do
-      ca = CA.new 'MyCA'
+      ca = CA.new(@key, @root_crt)
       crt = ca.sign(@csr)
 
       subject_key_identifier = crt
@@ -192,7 +156,7 @@ describe 'A Certificate Authority (CA)' do
     end
 
     it 'emits certificates with an extension that disallows their usage as a CA' do
-      ca = CA.new 'MyCA'
+      ca = CA.new(@key, @root_crt)
       crt = ca.sign(@csr)
 
       basicConstraints = crt
@@ -205,8 +169,60 @@ describe 'A Certificate Authority (CA)' do
   end
 
   describe 'when validating a certificate' do
+    before :example do
+      @root_crt = OpenSSL::X509::Certificate.new <<~EOS
+      -----BEGIN CERTIFICATE-----
+      MIIC2jCCAkMCAg38MA0GCSqGSIb3DQEBBQUAMIGbMQswCQYDVQQGEwJKUDEOMAwG
+      A1UECBMFVG9reW8xEDAOBgNVBAcTB0NodW8ta3UxETAPBgNVBAoTCEZyYW5rNERE
+      MRgwFgYDVQQLEw9XZWJDZXJ0IFN1cHBvcnQxGDAWBgNVBAMTD0ZyYW5rNEREIFdl
+      YiBDQTEjMCEGCSqGSIb3DQEJARYUc3VwcG9ydEBmcmFuazRkZC5jb20wHhcNMTIw
+      ODIyMDUyNzQxWhcNMTcwODIxMDUyNzQxWjBKMQswCQYDVQQGEwJKUDEOMAwGA1UE
+      CAwFVG9reW8xETAPBgNVBAoMCEZyYW5rNEREMRgwFgYDVQQDDA93d3cuZXhhbXBs
+      ZS5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC0z9FeMynsC8+u
+      dvX+LciZxnh5uRj4C9S6tNeeAlIGCfQYk0zUcNFCoCkTknNQd/YEiawDLNbxBqut
+      bMDZ1aarys1a0lYmUeVLCIqvzBkPJTSQsCopQQ9V8WuT252zzNzs68dVGNdCJd5J
+      NRQykpwexmnjPPv0mvj7i8XgG379TyW6P+WWV5okeUkXJ9eJS2ouDYdR2SM9BoVW
+      +FgxDu6BmXhozW5EfsnajFp7HL8kQClI0QOc79yuKl3492rH6bzFsFn2lfwWy9ic
+      7cP8EpCTeFp1tFaD+vxBhPZkeTQ1HKx6hQ5zeHIB5ySJJZ7af2W8r4eTGYzbdRW2
+      4DDHCPhZAgMBAAEwDQYJKoZIhvcNAQEFBQADgYEAQMv+BFvGdMVzkQaQ3/+2noVz
+      /uAKbzpEL8xTcxYyP3lkOeh4FoxiSWqy5pGFALdPONoDuYFpLhjJSZaEwuvjI/Tr
+      rGhLV1pRG9frwDFshqD2Vaj4ENBCBh6UpeBop5+285zQ4SI7q4U9oSebUDJiuOx6
+      +tZ9KynmrbJpTSi0+BM=
+      -----END CERTIFICATE-----
+      EOS
+
+      @key = OpenSSL::PKey::RSA.new <<~EOS
+      -----BEGIN RSA PRIVATE KEY-----
+      MIIEpAIBAAKCAQEAtM/RXjMp7AvPrnb1/i3ImcZ4ebkY+AvUurTXngJSBgn0GJNM
+      1HDRQqApE5JzUHf2BImsAyzW8QarrWzA2dWmq8rNWtJWJlHlSwiKr8wZDyU0kLAq
+      KUEPVfFrk9uds8zc7OvHVRjXQiXeSTUUMpKcHsZp4zz79Jr4+4vF4Bt+/U8luj/l
+      lleaJHlJFyfXiUtqLg2HUdkjPQaFVvhYMQ7ugZl4aM1uRH7J2oxaexy/JEApSNED
+      nO/cripd+Pdqx+m8xbBZ9pX8FsvYnO3D/BKQk3hadbRWg/r8QYT2ZHk0NRyseoUO
+      c3hyAeckiSWe2n9lvK+HkxmM23UVtuAwxwj4WQIDAQABAoIBAE76H0d4La2PEy3v
+      hE98DA0vJdx1PzTJZigPacb42H8OxfIeFQcOKDlj381OwNO7MliVEe9pHJG3CjH8
+      ONhtfBm5wa0UBtFCIFd/6aQUEDYPWECC0kemxV4Sz5yL5vxsVWufKThAW3XnOIrd
+      hm74nvzKSeIZ9yvGrU6ipNHY8MUPm0DQVrVYE5MiKjKVExQ4uRAolV2hlmeQDlSt
+      k85S0TUOWO1EvJZhsVVs7dBjjY10hIjv3gZPAO8CN85JzMeaNbmWv4RQj0B997in
+      rqlOa5qYYt80tAWO4hmPRKCrv6PgThz8C0Cd8AgwNzvQD2d4JpmxxTzBT6/5lRng
+      Hhj/wQECgYEA2jxC0a4lGmp1q2aYE1Zyiq0UqjxA92pwFYJg3800MLkf96A+dOhd
+      wDAc5aAKN8vQV5g33vKi5+pIHWUCskhTS8/PPGrfeqIvtphCj6b7LKosBOhdzrRD
+      Osr+Az/SiR2h5l2lr/v7I8I86RTY7MBk4QcRb601kSagWLDNVzSSdhECgYEA1Bm0
+      0sByqkQmFoUNRjwmShPfJeVLTCr1G4clljl6MqHmGyRDHxtcp1+CXlyJJemLQY2A
+      qrM7/T4x2ta6ME2WgDydFe9M8oU3BbefNYovS6YnoyBqxCx7yZ1vO0Jo40rZI8Bi
+      KoCi6e0Hugg4xyPRz9TTNLmr/yEC1qQesMhM9ckCgYEArsT7rfgMdq8zNOSgfTwJ
+      1sztc7d1P67ZvCABfLlVRn+6/hAydGVyTus4+RvFkxGB8+RPOhiOJbQVtJSkKCqL
+      qnbtu7DK7+ba1xvwkiJjnE1bm0KLfXIXNQpDik6eSHiWo2nzuo/Ne8GeDftIDbG2
+      GBAVAp5v+6I3X0+X4nKTqEECgYEAwT4Cj5mjXxnkEdR7eahHwmpEf0RfzC+/Tate
+      RXZsrUDwY34wYWEOk7fjEZIBqrcTl1ATEHNojpxh096bmHK4UnHnNRrn4nYY4W6g
+      8ajK2oOxzWA1pjJZPiHgO/+PjLafC4G2br7wr2y0A3yGLnmmKVLgc0NPP42WBnVV
+      OP/ljnECgYABlDdJCAehDNSv4mdEzY5bfD+VBFd2QsgE1hYhmUYYRNlgIfIL9Y8e
+      CduqXFLNZ/LHdmtYembgUqrMiJTUqcbSrJt26kBQx0az3LAV+J2p68PQ85KR9ZPy
+      N1jEnRqpAwEdw7S+8l0yVyaNkm66eRI80p+w3AxNbS9hJ/7UlV3lGA==
+      -----END RSA PRIVATE KEY-----
+      EOS
+    end
     it 'returns false if it did not emit the certificate' do
-      ca = CA.new 'MyCA'
+      ca = CA.new(@key, @root_crt)
       crt = OpenSSL::X509::Certificate.new <<~EOS
         -----BEGIN CERTIFICATE-----
         MIIGFzCCBP+gAwIBAgIQBXRIzNSoVar0an65vBDlTjANBgkqhkiG9w0BAQsFADBe
@@ -249,7 +265,7 @@ describe 'A Certificate Authority (CA)' do
     end
 
     it 'returns true if it emitted the certificate' do
-      ca = CA.new 'MyCA'
+      ca = CA.new(@key, @root_crt)
       csr = OpenSSL::X509::Request.new <<~EOS
         -----BEGIN CERTIFICATE REQUEST-----
         MIICzTCCAbUCAQAwgYcxCzAJBgNVBAYTAkdCMRYwFAYDVQQIEw1TdGFmZm9yZHNo
