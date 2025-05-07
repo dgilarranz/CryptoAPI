@@ -18,4 +18,5 @@ end
 # Testing gems
 group :test do
   gem 'rspec'
+  gem 'fakefs'
 end
