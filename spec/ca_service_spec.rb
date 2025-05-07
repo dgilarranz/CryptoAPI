@@ -1,0 +1,164 @@
+require_relative '../lib/ca_service'
+
+describe 'The CA Service' do
+  before :example do
+    # Reset initial state
+    loaded_CAs = CAService.instance.instance_variable_get(:@loaded_CAs)
+    loaded_CAs.clear
+  end
+
+  it 'is a Singleton' do
+    expect(CAService).to include Singleton
+  end
+
+  describe 'when creating a CA' do
+    it 'creates a UUID to identify the CA' do
+      id = CAService.instance.create_ca('MyCA')
+
+      expect(id).to match(/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/)
+    end
+
+    it 'uses different UUIDs to identify each CA' do
+      id1 = CAService.instance.create_ca('MyCA')
+      id2 = CAService.instance.create_ca('MyDifferentCA')
+
+      expect(id1).not_to eq id2
+    end
+
+    it 'adds the created CA to the list loaded CAs' do
+      id = CAService.instance.create_ca('MyCA')
+      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+
+      expect(ca).to be_a CA
+    end
+
+    it 'creates a key pair for the CA' do
+      id = CAService.instance.create_ca('MyCA')
+      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+
+      expect(ca.key).to be_a OpenSSL::PKey::RSA
+    end
+
+    it 'creates a 2048 bit RSA key' do
+      id = CAService.instance.create_ca('MyCA')
+      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+
+      # We check the length of the private key converted to pem. The resulting
+      # string should be 1700, 1704 or 1708 characters in length
+      # (lengths found empirically using irb and simulating possible values)
+      expect([1700, 1704, 1708]).to include ca.key.private_to_pem.length
+    end
+
+    it 'creates a root certificate for the CA' do
+      id = CAService.instance.create_ca('MyCA')
+      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+
+      expect(ca.certificate).to be_a OpenSSL::X509::Certificate
+    end
+
+    it 'uses the the requested Common Name (CN) for the CA' do
+      common_name = 'MyCA'
+      id = CAService.instance.create_ca(common_name)
+      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+
+      expect(ca.certificate.subject.to_s.split('/')[1].split('=').last).to eq common_name
+    end
+
+    it 'creates a root certificate with the serial number 0' do
+      id = CAService.instance.create_ca('MyCA')
+      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+
+      expected_serial = OpenSSL::BN.new 0
+      expect(ca.certificate.serial).to eq expected_serial
+    end
+
+    it 'creates a v3 root certificate (RFC 5280)' do
+      id = CAService.instance.create_ca('MyCA')
+      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+
+      expect(ca.certificate.version).to be 2
+    end
+
+    it 'creates a root certificate whose validity starts the moment it is created' do
+      # Mock calls to Time.now to return a fixed time
+      @time_now = Time.now
+      allow(Time).to receive(:now).and_return(@time_now)
+
+      id = CAService.instance.create_ca('MyCA')
+      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+
+      expect(ca.certificate.not_before.to_i).to eq @time_now.to_i
+    end
+
+    it 'creates a root certificate valid for 365 days' do
+      # Mock calls to Time.now to return a fixed time
+      @time_now = Time.now
+      allow(Time).to receive(:now).and_return(@time_now)
+
+      id = CAService.instance.create_ca('MyCA')
+      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+
+      expect(ca.certificate.not_after.to_i).to eq (@time_now + 365 * 24 * 60 * 60).to_i
+    end
+
+    it 'creates a self signed certificate for the CA(issuer = subject)' do
+      id = CAService.instance.create_ca('MyCA')
+      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+
+      expect(ca.certificate.issuer).to eq ca.certificate.subject
+    end
+
+    it "creates a root certificate whose public key coincides with the CA's key" do
+      id = CAService.instance.create_ca('MyCA')
+      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+
+      expect(ca.certificate.public_key.to_s).to eq ca.key.public_key.to_s
+    end
+
+    it 'creates a root certificate with a hash based Subject Key Identifier (SKID) extension' do
+      id = CAService.instance.create_ca('MyCA')
+      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+
+      subject_key_identifier = ca
+        .certificate
+        .extensions
+        .map(&:to_s)
+        .filter { |ext| ext.match?(/subjectKeyIdentifier/) }
+        .first
+      expect(subject_key_identifier.match?(/[0-9A-F]{2}(:[0-9A-F]{2}){19}/)).to be_truthy
+    end
+
+    it 'creates a root certificate with an extension that allows its usage as a CA' do
+      id = CAService.instance.create_ca('MyCA')
+      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+
+      basic_constraints = ca
+        .certificate
+        .extensions
+        .map(&:to_s)
+        .filter { |ext| ext.match?(/basicConstraints/) }
+        .first
+      expect(basic_constraints.match?(/critical, CA:TRUE/)).to be_truthy
+    end
+
+    it "creates a root certificate with an extensions that indicates the CA's key can be used to verify signatures" do
+      id = CAService.instance.create_ca('MyCA')
+      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+
+      key_usage= ca
+        .certificate
+        .extensions
+        .map(&:to_s)
+        .filter { |ext| ext.match?(/keyUsage/) }
+        .first
+      expect(key_usage.match?(/critical, Certificate Sign, CRL Sign/)).to be_truthy
+    end
+
+    it 'creates a self signed root certificate' do
+      id = CAService.instance.create_ca('MyCA')
+      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+
+      expect(ca.certificate.verify(ca.certificate.public_key)).to be_truthy
+    end
+  end
+end
