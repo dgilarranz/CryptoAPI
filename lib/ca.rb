@@ -63,4 +63,8 @@ class CA
 
     crt
   end
+
+  def validate(crt)
+    crt.verify @private_key
+  end
 end

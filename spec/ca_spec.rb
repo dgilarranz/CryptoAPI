@@ -203,4 +203,76 @@ describe 'A Certificate Authority (CA)' do
       expect(basicConstraints.match?(/CA:FALSE/)).to be_truthy
     end
   end
+
+  describe 'when validating a certificate' do
+    it 'returns false if it did not emit the certificate' do
+      ca = CA.new 'MyCA'
+      crt = OpenSSL::X509::Certificate.new <<~EOS
+        -----BEGIN CERTIFICATE-----
+        MIIGFzCCBP+gAwIBAgIQBXRIzNSoVar0an65vBDlTjANBgkqhkiG9w0BAQsFADBe
+        MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3
+        d3cuZGlnaWNlcnQuY29tMR0wGwYDVQQDExRUaGF3dGUgVExTIFJTQSBDQSBHMTAe
+        Fw0yNDEwMTQwMDAwMDBaFw0yNTExMTQyMzU5NTlaMBUxEzARBgNVBAMTCmlrZXJs
+        YW4uZXMwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQD1jxE9dMngh/dK
+        +goC8GPUWQnOe5dlFYDUsGgaK8YvdKh2eFf/RFdF+6isEQ8ncrzlqNCUQdSusMHl
+        qqgEmFHBC5Y1nAVQvKubab8OAeeIUo0rw/w5jtC5BHCpXc3IxxiOQJMZ7QPXWe8q
+        rjDXldcDu4HJVoaDoyYkyTbisE9LvHT5s3fRZdswA09e5h0/VR/EQpPnFwBvRlE4
+        cMLSYJu/Hp4my2TVYFyWdaheFmrD9hNuSaier5G5wiMgDfoO20JB2sG54gR0I2QV
+        TnnYnPWEgHcvMDF0FbjCZjpCIOEAC0/DOA2NLTK2jOrtG33QkNZIvnFD0t4dN3Q4
+        IumSvDLbAgMBAAGjggMYMIIDFDAfBgNVHSMEGDAWgBSljP4yzOsPLNQZxgi4ACSI
+        XcPFtzAdBgNVHQ4EFgQUjv+rczEgVCXwh1fbt0E/qmsGscgwJQYDVR0RBB4wHIIK
+        aWtlcmxhbi5lc4IOd3d3LmlrZXJsYW4uZXMwPgYDVR0gBDcwNTAzBgZngQwBAgEw
+        KTAnBggrBgEFBQcCARYbaHR0cDovL3d3dy5kaWdpY2VydC5jb20vQ1BTMA4GA1Ud
+        DwEB/wQEAwIFoDAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwOwYDVR0f
+        BDQwMjAwoC6gLIYqaHR0cDovL2NkcC50aGF3dGUuY29tL1RoYXd0ZVRMU1JTQUNB
+        RzEuY3JsMHAGCCsGAQUFBwEBBGQwYjAkBggrBgEFBQcwAYYYaHR0cDovL3N0YXR1
+        cy50aGF3dGUuY29tMDoGCCsGAQUFBzAChi5odHRwOi8vY2FjZXJ0cy50aGF3dGUu
+        Y29tL1RoYXd0ZVRMU1JTQUNBRzEuY3J0MAwGA1UdEwEB/wQCMAAwggF9BgorBgEE
+        AdZ5AgQCBIIBbQSCAWkBZwB2ABLxTjS9U3JMhAYZw48/ehP457Vih4icbTAFhOvl
+        hiY6AAABkoohBe0AAAQDAEcwRQIhAJbOoerE6LpNSK1pCGpCCHk3WKoxoVicNKtj
+        lBUDZFU8AiBfi2glhCH63DU6Y1JhjH+IO5jrwLz3VaXFgSdRjmsyEQB2AMz7D2qF
+        cQll/pWbU87psnwi6YVcDZeNtql+VMD+TA2wAAABkoohBiQAAAQDAEcwRQIhALYs
+        hWFktLEmjXWKoJC1CbrI+y7Cj4tWIjLH9U7jngyoAiBBvkf9sf76PLeHP4cSjqbO
+        hI6aSwJ7SVw3s3uiuytJJQB1AN3cyjSV1+EWBeeVMvrHn/g9HFDf2wA6FBJ2Ciys
+        u8gqAAABkoohBiwAAAQDAEYwRAIga8Hx1IeD7hZ4+RPilTdMt8ei65ODRAU4n/hj
+        HH59P98CIHAgeJtMoA0zysoc7PMZfMMA7KpbYwaMv81verlqfLtfMA0GCSqGSIb3
+        DQEBCwUAA4IBAQDB4wbH3YEYBSlCLes2D2GiFdzVEQ5oEZQVbJlo8nSO6Jn8ofQk
+        D2eYjQyaSG7mBDrz4/KUwOdVlo/T0CbPSJaoH9v3NvMQJUwFmUr7X7AD8xiCLFH3
+        hJBtFSOoq21eQk/VELesRQn4yNEs3hsxm/sxEDzj/zQdZc2ebdTj1WlUZig7fvF6
+        dMIrkyMu5akaZ8KXkUU+nqA0BUQbTWprpQ+o2CsvaYPS5iShS5bIrWODsaZmOmvX
+        uVcAfBeekGts+R+CYXS+uOZDJ0Lk/QbxPgWgpSt28hzQ2gvfMoYTzCajp6GJT6f9
+        Zy08+xgF2DSnvNPTFi760rC0zqb/X9jowwQQ
+        -----END CERTIFICATE-----
+      EOS
+
+      expect(ca.validate(crt)).to be_falsy
+    end
+
+    it 'returns true if it emitted the certificate' do
+      ca = CA.new 'MyCA'
+      csr = OpenSSL::X509::Request.new <<~EOS
+        -----BEGIN CERTIFICATE REQUEST-----
+        MIICzTCCAbUCAQAwgYcxCzAJBgNVBAYTAkdCMRYwFAYDVQQIEw1TdGFmZm9yZHNo
+        aXJlMRcwFQYDVQQHEw5TdG9rZSBvbiBUcmVudDEjMCEGA1UEChMaUmVkIEtlc3Ry
+        ZWwgQ29uc3VsdGluZyBMdGQxIjAgBgNVBAMTGXRlc3RjZXJ0LnJlZGtlc3RyZWwu
+        Y28udWswggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDWLeW88IeAIa3n
+        23R99i874fh0jetf+STsGPgkfGXGJ++tclKGk3MJE0ijD4PNaxGXUCNULgn2ROyy
+        bm5sTmGzpEOD+1AAAyV+pLQoFNkHEFuudGqVM6XkPWfqaM2vKvdzUbPPC0X/MfDF
+        GPxc8AY3TUM385c9c9/WOIF6NUcAvAFIQF0zG7evzJZBqDb4enUnatMSLHmxRWMi
+        1JeHtfLINXhNitHewEQWgIB3j1xmh7CPO5FeTb6HzQDxc+f7uMisY6s9J/Ph3GeO
+        CeIDooqU8jnfV5eGEzIMH5CFMZjajrNKF4DYK3YRyUI0K66+v0KILoUntEs++M20
+        LhOn+VE9AgMBAAGgADANBgkqhkiG9w0BAQUFAAOCAQEAUWE7oBX3SLjYNM53bsBO
+        lNGnsgAp1P1fiCPpEKaZGEOUJ2xOguIHSu1N1ZigKpWmiAAZxuoagW1R/ANM3jXp
+        vCLVBRv40AHCFsot9udrdCYjI43aDHAaYvLmT4/Pvpntcn0/7+g//elAHhr9UIoo
+        MZwwwo6yom67Jwfw/be/g7Mae7mPHZ2lsQTS02hEeqVynIRk2W9meQULrt+/atog
+        0mqJSBx0WswtHliTc+nXFpQrwFIEzVuPGCOVw7LmCfNmHNCkZVuRSJB/9MdLmrfw
+        chPI3NeTGSe+BZfsOtpt2/7j+bqeYKFu8B0stLoJBEnihxUoV18uZOmOeuVuX1N6
+        nA==
+        -----END CERTIFICATE REQUEST-----
+      EOS
+      crt = ca.sign(csr)
+      
+      expect(ca.validate(crt)).to be_truthy
+    end
+  end
 end
