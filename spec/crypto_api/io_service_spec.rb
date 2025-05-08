@@ -1,8 +1,4 @@
-require 'pp'
-require 'fakefs/spec_helpers'
-require 'securerandom'
-require_relative '../lib/ca'
-require_relative '../lib/io_service'
+require_relative '../spec_helper.rb'
 
 describe 'The IO Service' do
   include FakeFS::SpecHelpers

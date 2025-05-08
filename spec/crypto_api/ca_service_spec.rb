@@ -1,4 +1,4 @@
-require_relative '../lib/ca_service'
+require_relative '../spec_helper'
 
 describe 'The CA Service' do
   before :example do

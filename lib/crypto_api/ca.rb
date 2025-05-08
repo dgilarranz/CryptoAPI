@@ -1,6 +1,4 @@
-require 'openssl'
-require 'securerandom'
-
+# frozen_string_literal: true
 class CA
   attr_reader :key, :certificate
 

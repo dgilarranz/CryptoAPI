@@ -1,4 +1,4 @@
-require_relative '../lib/ca'
+require_relative '../spec_helper.rb'
 
 describe 'A Certificate Authority (CA)' do
 

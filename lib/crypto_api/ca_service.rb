@@ -1,8 +1,4 @@
-require 'securerandom'
-require 'singleton'
-require_relative './ca'
-require_relative './io_service'
-
+# frozen_string_literal: true
 class CAService
   include Singleton
 
