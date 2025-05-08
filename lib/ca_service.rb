@@ -1,6 +1,7 @@
 require 'securerandom'
 require 'singleton'
 require_relative './ca'
+require_relative './io_service'
 
 class CAService
   include Singleton
@@ -21,12 +22,36 @@ class CAService
     add_extensions(certificate)
     certificate.sign(key, OpenSSL::Digest.new('SHA256'))
 
-    # Create a new CA and save it to disk
+    # Create a new CA, save it and add it to the list of loaded CAs
     ca = CA.new(key, certificate)
-    # TODO: save CA
     @loaded_CAs[id] = ca
+    IOService.instance.save_ca(id, ca)
 
     id
+  end
+
+  def sign_certificate(id, csr)
+    # If necessary, load the requested CA
+    @loaded_CAs[id] = IOService.instance.load_ca(id) unless @loaded_CAs.key? id
+
+    # Parse the request and emit the certificate
+    csr = OpenSSL::X509::Request.new(csr)
+    crt = @loaded_CAs[id].sign(csr)
+
+    # Save the certificate
+    IOService.instance.save_certificate(id, crt)
+
+    # Return the PEM-encoded certificate
+    crt.to_pem
+  end
+
+  def validate_certificate(id, crt)
+    # If necessary, load the requested CA
+    @loaded_CAs[id] = IOService.instance.load_ca(id) unless @loaded_CAs.key? id
+
+    # Parse the PEM-encoded certificate and validate it
+    crt = OpenSSL::X509::Certificate.new(crt)
+    @loaded_CAs[id].validate(crt)
   end
 
   private
