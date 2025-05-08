@@ -133,4 +133,37 @@ describe 'The IO Service' do
       end
     end
   end
+
+  describe 'when loading a CA' do
+    before :example do
+      @id = CAService.instance.create_ca('MyCA')
+      @ca = CAService.instance.instance_variable_get(:@loaded_CAs)[@id]
+    end
+
+    it 'reads the saved RSA private key' do
+      FakeFS do
+        # Save the CA
+        Dir.mkdir IOService::BASE_PATH
+        io_service = IOService.instance
+        io_service.save_ca(@id, @ca)
+
+        # Load the ca
+        loaded_ca = io_service.load_ca(@id)
+        expect(loaded_ca.key.to_pem).to eq @ca.key.to_pem
+      end
+    end
+    
+    it 'reads the saved root certificate' do
+      FakeFS do
+        # Save the CA
+        Dir.mkdir IOService::BASE_PATH
+        io_service = IOService.instance
+        io_service.save_ca(@id, @ca)
+
+        # Load the ca
+        loaded_ca = io_service.load_ca(@id)
+        expect(loaded_ca.certificate.to_pem).to eq @ca.certificate.to_pem
+      end
+    end
+  end
 end
