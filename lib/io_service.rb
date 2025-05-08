@@ -26,4 +26,10 @@ class IOService
     # Create directory to store emitted certificates
     Dir.mkdir "#{ca_path}/certs"
   end
+
+  def save_certificate(ca_id, certificate)
+    open "#{BASE_PATH}/#{ca_id}/#{certificate.serial}.pem", 'w' do |file|
+      file.write certificate.to_pem
+    end
+  end
 end
