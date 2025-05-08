@@ -1,4 +1,5 @@
 require 'openssl'
+require 'securerandom'
 
 class CA
   attr_reader :key, :certificate
@@ -11,7 +12,7 @@ class CA
   def sign(csr)
     # Create a new certificate
     crt = OpenSSL::X509::Certificate.new
-    crt.serial = 0
+    crt.serial = SecureRandom.random_number(1 << 160)
     crt.version = 2
     crt.not_before = Time.now
     crt.not_after = crt.not_before + 2 * 365 * 24 * 60 * 60

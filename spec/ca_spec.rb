@@ -166,6 +166,40 @@ describe 'A Certificate Authority (CA)' do
         .first
       expect(basicConstraints.match?(/CA:FALSE/)).to be_truthy
     end
+
+    it 'should generate different serial numbers for emitted certificates' do
+      ca = CA.new(@key, @root_crt)
+      crt1 = ca.sign(@csr)
+      crt2 = ca.sign(@csr)
+
+      expect(crt2.serial).not_to eq crt1.serial
+    end
+
+    it 'should generate random serial numbers' do
+      # Mock SecureRandom to verify it is used to create the certificate's serial number
+      random_number = SecureRandom.random_number(1 << 160)
+      allow(SecureRandom).to receive(:random_number) { random_number }
+
+      # Issue a certificate
+      ca = CA.new(@key, @root_crt)
+      crt = ca.sign(@csr)
+
+      # Verify the serial number is the result of calling SecureRandom
+      expect(crt.serial).to eq random_number
+    end
+
+    it 'should generate random serial numbers with 20 bytes of entropy' do
+      # Verify SecureRandom uses 20 bytes of entropy
+      random_number = SecureRandom.random_number(1 << 160)
+      allow(SecureRandom).to receive(:random_number) { random_number }
+
+      # Expect SecureRandom to be called when initialising 
+      expect(SecureRandom).to receive(:random_number).with(1<<160).once
+
+      # Issue a certificate
+      ca = CA.new(@key, @root_crt)
+      ca.sign(@csr)
+    end
   end
 
   describe 'when validating a certificate' do
