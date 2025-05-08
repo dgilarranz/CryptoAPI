@@ -5,7 +5,7 @@ require 'singleton'
 class IOService
   include Singleton
 
-  BASE_PATH = '../cas'
+  BASE_PATH = './cas'
   RSA_KEY_FILENAME = 'key.pem'
   ROOT_CRT_FILENAME = 'root_crt.pem'
   CA_CERTS_DIRECTORY = 'certs'
