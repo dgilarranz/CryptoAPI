@@ -6,7 +6,10 @@ ruby '3.4.1'
 source 'https://rubygems.org'
 
 # Production gems
+gem 'dotenv'
 gem 'openssl'
+gem 'puma'
+gem 'rake'
 gem 'sinatra'
 
 # Development gems
@@ -17,7 +20,7 @@ end
 
 # Testing gems
 group :test do
-  gem 'rspec'
   gem 'fakefs'
+  gem 'rspec'
   gem 'irb'
 end
