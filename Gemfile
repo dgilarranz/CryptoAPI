@@ -21,6 +21,7 @@ end
 # Testing gems
 group :test do
   gem 'fakefs'
-  gem 'rspec'
   gem 'irb'
+  gem 'rack-test'
+  gem 'rspec'
 end
