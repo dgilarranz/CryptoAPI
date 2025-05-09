@@ -13,7 +13,6 @@ module CryptoAPI
       content_type :json
     end
 
-    # Handle POST requests to /ca
     post '/ca' do
       # Generate a new CA
       body = JSON.parse request.body.read
@@ -23,6 +22,20 @@ module CryptoAPI
 
       # Return ID and PEM Certificate
       { id: id, crt: crt }.to_json
+    rescue JSON::ParserError
+      halt 400
+    rescue
+      halt 500
+    end
+
+    post '/csr' do
+      # Attempt to sign the certificate
+      body = JSON.parse request.body.read
+      ca_service = CAService.instance
+      crt = ca_service.sign_certificate(body['id'], body['csr'])
+
+      # Return ID and PEM Certificate
+      { crt: crt }.to_json
     rescue JSON::ParserError
       halt 400
     rescue
