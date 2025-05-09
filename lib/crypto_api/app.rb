@@ -41,5 +41,19 @@ module CryptoAPI
     rescue
       halt 500
     end
+
+    post '/validate' do
+      # Verify the certificate
+      body = JSON.parse request.body.read
+      ca_service = CAService.instance
+      valid = ca_service.validate_certificate(body['id'], body['crt'])
+
+      # Return the result
+      { valid: valid }.to_json
+    rescue JSON::ParserError
+      halt 400
+    rescue
+      halt 500
+    end
   end
 end
