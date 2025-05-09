@@ -1,20 +1,32 @@
 # frozen_string_literal: true
+
 module CryptoAPI
   class App < Sinatra::Base
     # Shared behaviour by all endpoints
     before do
-      # Response content type is JSON
-      content_type :json
-
       # If the authentication header is missing, return 403
       unless request.env['X-API-Key'] == ENV['API_KEY']
-        halt(403, {'Content-Type' => 'text/plain'}, 'Unauthorized')
+        halt(403, { 'Content-Type': 'text/plain' }, 'Unauthorized')
       end
+
+      # Response content type is JSON
+      content_type :json
     end
 
     # Handle POST requests to /ca
     post '/ca' do
-      ENV['API_KEY']
+      # Generate a new CA
+      body = JSON.parse request.body.read
+      ca_service = CAService.instance
+      id = ca_service.create_ca(body['common_name'])
+      crt = ca_service.loaded_CAs[id].certificate.to_pem
+
+      # Return ID and PEM Certificate
+      { id: id, crt: crt }.to_json
+    rescue JSON::ParserError
+      halt 400
+    rescue
+      halt 500
     end
   end
 end
