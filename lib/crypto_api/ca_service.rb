@@ -2,6 +2,8 @@
 class CAService
   include Singleton
 
+  attr_reader :loaded_CAs
+
   def initialize
     @loaded_CAs = {}
   end

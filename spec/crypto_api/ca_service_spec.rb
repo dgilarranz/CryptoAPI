@@ -3,7 +3,7 @@ require_relative '../spec_helper'
 describe 'The CA Service' do
   before :example do
     # Reset initial state
-    loaded_CAs = CAService.instance.instance_variable_get(:@loaded_CAs)
+    loaded_CAs = CAService.instance.loaded_CAs
     loaded_CAs.clear
 
     # Mock IOService.instance before each test to return a double
@@ -34,21 +34,21 @@ describe 'The CA Service' do
 
     it 'adds the created CA to the list loaded CAs' do
       id = CAService.instance.create_ca('MyCA')
-      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+      ca = CAService.instance.loaded_CAs[id]
 
       expect(ca).to be_a CA
     end
 
     it 'creates a key pair for the CA' do
       id = CAService.instance.create_ca('MyCA')
-      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+      ca = CAService.instance.loaded_CAs[id]
 
       expect(ca.key).to be_a OpenSSL::PKey::RSA
     end
 
     it 'creates a 2048 bit RSA key' do
       id = CAService.instance.create_ca('MyCA')
-      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+      ca = CAService.instance.loaded_CAs[id]
 
       # We check the length of the private key converted to pem. The resulting
       # string should be 1700, 1704 or 1708 characters in length
@@ -58,7 +58,7 @@ describe 'The CA Service' do
 
     it 'creates a root certificate for the CA' do
       id = CAService.instance.create_ca('MyCA')
-      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+      ca = CAService.instance.loaded_CAs[id]
 
       expect(ca.certificate).to be_a OpenSSL::X509::Certificate
     end
@@ -66,14 +66,14 @@ describe 'The CA Service' do
     it 'uses the the requested Common Name (CN) for the CA' do
       common_name = 'MyCA'
       id = CAService.instance.create_ca(common_name)
-      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+      ca = CAService.instance.loaded_CAs[id]
 
       expect(ca.certificate.subject.to_s.split('/')[1].split('=').last).to eq common_name
     end
 
     it 'creates a root certificate with the serial number 0' do
       id = CAService.instance.create_ca('MyCA')
-      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+      ca = CAService.instance.loaded_CAs[id]
 
       expected_serial = OpenSSL::BN.new 0
       expect(ca.certificate.serial).to eq expected_serial
@@ -81,7 +81,7 @@ describe 'The CA Service' do
 
     it 'creates a v3 root certificate (RFC 5280)' do
       id = CAService.instance.create_ca('MyCA')
-      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+      ca = CAService.instance.loaded_CAs[id]
 
       expect(ca.certificate.version).to be 2
     end
@@ -92,7 +92,7 @@ describe 'The CA Service' do
       allow(Time).to receive(:now).and_return(@time_now)
 
       id = CAService.instance.create_ca('MyCA')
-      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+      ca = CAService.instance.loaded_CAs[id]
 
       expect(ca.certificate.not_before.to_i).to eq @time_now.to_i
     end
@@ -103,28 +103,28 @@ describe 'The CA Service' do
       allow(Time).to receive(:now).and_return(@time_now)
 
       id = CAService.instance.create_ca('MyCA')
-      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+      ca = CAService.instance.loaded_CAs[id]
 
       expect(ca.certificate.not_after.to_i).to eq (@time_now + 365 * 24 * 60 * 60).to_i
     end
 
     it 'creates a self signed certificate for the CA(issuer = subject)' do
       id = CAService.instance.create_ca('MyCA')
-      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+      ca = CAService.instance.loaded_CAs[id]
 
       expect(ca.certificate.issuer).to eq ca.certificate.subject
     end
 
     it "creates a root certificate whose public key coincides with the CA's key" do
       id = CAService.instance.create_ca('MyCA')
-      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+      ca = CAService.instance.loaded_CAs[id]
 
       expect(ca.certificate.public_key.to_s).to eq ca.key.public_key.to_s
     end
 
     it 'creates a root certificate with a hash based Subject Key Identifier (SKID) extension' do
       id = CAService.instance.create_ca('MyCA')
-      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+      ca = CAService.instance.loaded_CAs[id]
 
       subject_key_identifier = ca
         .certificate
@@ -137,7 +137,7 @@ describe 'The CA Service' do
 
     it 'creates a root certificate with an extension that allows its usage as a CA' do
       id = CAService.instance.create_ca('MyCA')
-      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+      ca = CAService.instance.loaded_CAs[id]
 
       basic_constraints = ca
         .certificate
@@ -150,7 +150,7 @@ describe 'The CA Service' do
 
     it "creates a root certificate with an extensions that indicates the CA's key can be used to verify signatures" do
       id = CAService.instance.create_ca('MyCA')
-      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+      ca = CAService.instance.loaded_CAs[id]
 
       key_usage= ca
         .certificate
@@ -163,14 +163,14 @@ describe 'The CA Service' do
 
     it 'creates a self signed root certificate' do
       id = CAService.instance.create_ca('MyCA')
-      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+      ca = CAService.instance.loaded_CAs[id]
 
       expect(ca.certificate.verify(ca.certificate.public_key)).to be_truthy
     end
 
     it 'writes the created CA to disk' do
       id = CAService.instance.create_ca('MyCA')
-      ca = CAService.instance.instance_variable_get(:@loaded_CAs)[id]
+      ca = CAService.instance.loaded_CAs[id]
 
       expect(@io_service).to have_received(:save_ca).with(id, ca)
     end
@@ -203,7 +203,7 @@ describe 'The CA Service' do
     it 'returns the PEM string of the signed certificate' do
       ca_service = CAService.instance
       id = ca_service.create_ca('MyCA')
-      ca = ca_service.instance_variable_get(:@loaded_CAs)[id]
+      ca = ca_service.loaded_CAs[id]
 
       # Sign the certificate request
       signed_crt_pem = ca_service.sign_certificate(id, @csr)
@@ -215,7 +215,7 @@ describe 'The CA Service' do
     it 'saves the signed certificate' do
       ca_service = CAService.instance
       id = ca_service.create_ca('MyCA')
-      ca = ca_service.instance_variable_get(:@loaded_CAs)[id]
+      ca = ca_service.loaded_CAs[id]
 
       # Sign the certificate request
       signed_crt_pem = ca_service.sign_certificate(id, @csr)
@@ -228,10 +228,10 @@ describe 'The CA Service' do
       # Initialise variables
       ca_service = CAService.instance
       id = ca_service.create_ca('MyCA')
-      ca = ca_service.instance_variable_get(:@loaded_CAs)[id]
+      ca = ca_service.loaded_CAs[id]
 
       # Unload the CA
-      ca_service.instance_variable_get(:@loaded_CAs).clear
+      ca_service.loaded_CAs.clear
       allow(@io_service).to receive(:load_ca) { ca }
 
       # Sign the certificate request
@@ -322,7 +322,7 @@ describe 'The CA Service' do
       # Initialise test scenario
       ca_service = CAService.instance
       id = ca_service.create_ca('MyCA')
-      ca = ca_service.instance_variable_get(:@loaded_CAs)[id]
+      ca = ca_service.loaded_CAs[id]
       csr = <<~EOS
         -----BEGIN CERTIFICATE REQUEST-----
         MIICzTCCAbUCAQAwgYcxCzAJBgNVBAYTAkdCMRYwFAYDVQQIEw1TdGFmZm9yZHNo
@@ -346,7 +346,7 @@ describe 'The CA Service' do
       crt = ca_service.sign_certificate(id, csr)
 
       # Unload all loadedCAs
-      ca_service.instance_variable_get(:@loaded_CAs).clear
+      ca_service.loaded_CAs.clear
       allow(@io_service).to receive(:load_ca) { ca }
 
       # Request a certificate validation
