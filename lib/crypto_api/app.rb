@@ -4,16 +4,14 @@ module CryptoAPI
   class App < Sinatra::Base
     # Shared behaviour by all endpoints
     before do
-      # If the authentication header is missing, return 403
-      unless request.env['HTTP_X_API_KEY'] == ENV['API_KEY']
-        halt(403, { 'Content-Type': 'text/plain' }, 'Unauthorized')
-      end
-
-      # Response content type is JSON
+      # Most requests return JSON
       content_type :json
     end
 
     post '/crypto/ca' do
+      # Check if authorized
+      halt 403 unless authorized?
+
       # Generate a new CA
       body = JSON.parse request.body.read
       ca_service = CAService.instance
@@ -29,6 +27,9 @@ module CryptoAPI
     end
 
     post '/crypto/csr' do
+      # Check if authorized
+      halt 403 unless authorized?
+
       # Validate sensitive input to prevent attacks
       body = JSON.parse request.body.read
       halt 400 unless valid_id?(body['id'])
@@ -46,6 +47,9 @@ module CryptoAPI
     end
 
     post '/crypto/validate' do
+      # Check if authorized
+      halt 403 unless authorized?
+
       # Validate sensitive input to prevent attacks
       body = JSON.parse request.body.read
       halt 400 unless valid_id?(body['id'])
@@ -62,8 +66,20 @@ module CryptoAPI
       halt 500
     end
 
+    def authorized?
+      request.env['HTTP_X_API_KEY'] == ENV['API_KEY']
+    end
+
     def valid_id?(id)
       id.match?(/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/)
+    end
+
+    get '/docs' do
+      # Response content type is HTML
+      content_type :html
+
+      api_documentation = File.join('public', 'index.html')
+      File.read(api_documentation)
     end
   end
 end

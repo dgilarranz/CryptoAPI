@@ -392,4 +392,13 @@ describe 'The CryptoAPI microservice' do
       expect(last_response.status).to eq 400
     end
   end
+
+  describe 'when receiving a get request to /docs' do
+    it 'returns the static documentation file' do
+      get('/docs')
+      documentation = File.read(File.join(__dir__, '..', '..', 'public', 'index.html'))
+
+      expect(last_response.body).to eq documentation
+    end
+  end
 end
