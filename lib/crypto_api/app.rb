@@ -5,7 +5,7 @@ module CryptoAPI
     # Shared behaviour by all endpoints
     before do
       # If the authentication header is missing, return 403
-      unless request.env['X-API-Key'] == ENV['API_KEY']
+      unless request.env['HTTP_X_API_KEY'] == ENV['API_KEY']
         halt(403, { 'Content-Type': 'text/plain' }, 'Unauthorized')
       end
 
@@ -13,7 +13,7 @@ module CryptoAPI
       content_type :json
     end
 
-    post '/ca' do
+    post '/crypto/ca' do
       # Generate a new CA
       body = JSON.parse request.body.read
       ca_service = CAService.instance
@@ -28,9 +28,12 @@ module CryptoAPI
       halt 500
     end
 
-    post '/csr' do
-      # Attempt to sign the certificate
+    post '/crypto/csr' do
+      # Validate sensitive input to prevent attacks
       body = JSON.parse request.body.read
+      halt 400 unless valid_id?(body['id'])
+
+      # Attempt to sign the certificate
       ca_service = CAService.instance
       crt = ca_service.sign_certificate(body['id'], body['csr'])
 
@@ -42,9 +45,12 @@ module CryptoAPI
       halt 500
     end
 
-    post '/validate' do
-      # Verify the certificate
+    post '/crypto/validate' do
+      # Validate sensitive input to prevent attacks
       body = JSON.parse request.body.read
+      halt 400 unless valid_id?(body['id'])
+
+      # Validate the certificate
       ca_service = CAService.instance
       valid = ca_service.validate_certificate(body['id'], body['crt'])
 
@@ -54,6 +60,10 @@ module CryptoAPI
       halt 400
     rescue
       halt 500
+    end
+
+    def valid_id?(id)
+      id.match?(/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/)
     end
   end
 end
