@@ -18,9 +18,4 @@ namespace :test do
     # Cleanup after tests
     at_exit { Rake::Task['clean'].execute }
   end
-
-  RSpec::Core::RakeTask.new(:all) do
-    Rake::Task['test:unit'].invoke
-    Rake::Task['test:api'].invoke
-  end
 end
