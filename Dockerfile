@@ -3,6 +3,12 @@ FROM ruby:3.4.1
 # Install application under /usr/src/app
 WORKDIR /usr/src/app
 
+# Fail if .env file is not present
+COPY .env .
+
+# Fail unless .env file contains the API key
+RUN grep -qE '^API_KEY=.+$' .env || ( echo '.env file must provide an API_KEY. Exiting.' && exit 1 )
+
 # Copy Gemfile and install dependencies
 COPY Gemfile Gemfile.lock .env ./
 RUN bundle config set without 'development test'
