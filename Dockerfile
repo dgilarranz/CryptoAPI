@@ -10,7 +10,7 @@ COPY .env .
 RUN grep -qE '^API_KEY=.+$' .env || ( echo '.env file must provide an API_KEY. Exiting.' && exit 1 )
 
 # Copy Gemfile and install dependencies
-COPY Gemfile Gemfile.lock .env ./
+COPY Gemfile ./
 RUN bundle config set without 'development test'
 RUN bundle install
 
