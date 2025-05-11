@@ -19,7 +19,7 @@ git clone https://github.com/dgilarranz/CryptoAPI.git
 cd CryptoAPI
 ```
 
-2. Create a `.env` file with the desired API Key.
+2. Create a `.env` file with the desired API Key:
 
 ```bash
 echo "API_KEY=$(uuidgen)" > .env
@@ -47,7 +47,7 @@ docker run -p 8000:8000 my_custom_pki:v1
 ```
 
 The microservice exposes the API documentation at the endpoint `/docs`. If deployed locally, it
-can be viewd at the following URL:
+can be viewed at the following URL:
 
 - Documentation: [http://localhost:8000/docs](http://localhost:8000/docs)
 
