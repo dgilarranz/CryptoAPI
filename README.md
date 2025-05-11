@@ -33,7 +33,7 @@ docker build -t my_custom_pki:v1 .
 
 > [!CAUTION]
 > For security concerns, the building process will abort if the `.env` file is not supplied.
-> Furthermore, microservice will also refuse to start unless the `.env` file is present in
+> Furthermore, the microservice will also refuse to start unless the `.env` file is present in
 > its root directory. It is recommended to use a UUID or a sufficiently long hexadecimal string
 > to provide brute force protection.
 
