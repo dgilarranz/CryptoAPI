@@ -22,7 +22,7 @@ cd CryptoAPI
 2. Create a `.env` file with the desired API Key.
 
 ```bash
-uuidgen > .env
+echo "API_KEY=$(uuidgen)" > .env
 ```
 
 3. Build the docker image:
@@ -77,7 +77,7 @@ bundle install
 3. Create a `.env` file with the API key:
 
 ```bash
-uuidgen > .env
+echo "API_KEY=$(uuidgen)" > .env
 ```
 
 4. Deploy a test server locally:
